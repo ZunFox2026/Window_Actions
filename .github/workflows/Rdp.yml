@@ -19,11 +19,9 @@ jobs:
     timeout-minutes: 340
     
     steps:
-      # CHECKOUT CODE ĐỂ LẤY ẢNH WALLPAPER
       - name: 📥 CHECKOUT SOURCE CODE
         uses: actions/checkout@v4
 
-      # BANNER CHÀO MỪNG
       - name: 🎯 KHỞI ĐỘNG HỆ THỐNG ZUNNY
         run: |
           Write-Host ""
@@ -32,7 +30,6 @@ jobs:
           Write-Host "⚡ Powered by Zun Technologies" -ForegroundColor Green
           Write-Host "🕒 Thời gian: ${{ github.event.inputs.duration }}" -ForegroundColor Magenta
           Write-Host ""
-          
           $frames = @('⣾', '⣽', '⣻', '⢿', '⡿', '⣟', '⣯', '⣷')
           for($i=0; $i -lt 10; $i++) {
               Write-Host "`r🚀 Đang khởi tạo hệ thống Zunny... $($frames[$i % 8])" -NoNewline -ForegroundColor Blue
@@ -40,12 +37,10 @@ jobs:
           }
           Write-Host "`r✅ Hệ thống Zunny đã sẵn sàng!                    " -ForegroundColor Green
 
-      # CẤU HÌNH RDP & FIREWALL
       - name: 🔧 CẤU HÌNH HỆ THỐNG
         run: |
           Write-Host ""
           Write-Host "🛠️  ĐANG CẤU HÌNH HỆ THỐNG" -ForegroundColor Yellow
-          
           $steps = @(
               @{Name="Bật Remote Desktop"; Script={ 
                   Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
@@ -67,7 +62,6 @@ jobs:
                   Start-Service -Name UmRdpService -ErrorAction SilentlyContinue
               }}
           )
-          
           foreach($step in $steps) {
               Write-Host "│ 📋 $($step.Name)..." -NoNewline -ForegroundColor White
               try {
@@ -78,70 +72,46 @@ jobs:
               }
               Start-Sleep -Milliseconds 500
           }
-          
           Write-Host "🎯 Cấu hình hoàn tất!" -ForegroundColor Green
 
-      # TẠO USER MỚI VỚI MẬT KHẨU RANDOM
       - name: 👤 TẠO USER ZUNNY & CẤP QUYỀN
         run: |
           Write-Host ""
           Write-Host "👤 ĐANG TẠO TÀI KHOẢN ZUNNY" -ForegroundColor Yellow
-          
-          # Tạo mật khẩu random 12 ký tự: Zunny + 6 ký tự ngẫu nhiên
           $randomPart = -join ((65..90) + (97..122) + (48..57) | Get-Random -Count 6 | ForEach-Object { [char]$_ })
           $matKhau = "Zunny$randomPart"
           $securePass = ConvertTo-SecureString $matKhau -AsPlainText -Force
           $userName = "ZunnyUser"
-          
-          # Xóa user cũ nếu tồn tại
           try {
               Remove-LocalUser -Name $userName -ErrorAction SilentlyContinue
               Write-Host "│ ✅ Đã xóa user cũ (nếu có)" -ForegroundColor Green
           } catch { }
-          
-          # Tạo user mới
           try {
               New-LocalUser -Name $userName -Password $securePass -AccountNeverExpires -Description "Zunny Cloud User" -ErrorAction Stop
               Write-Host "│ ✅ Đã tạo user $userName" -ForegroundColor Green
-              
-              # Đặt password không hết hạn
               Set-LocalUser -Name $userName -PasswordNeverExpires $true -ErrorAction SilentlyContinue
-              
-              # Thêm vào nhóm Administrators và Remote Desktop Users
               Add-LocalGroupMember -Group "Administrators" -Member $userName -ErrorAction Stop
               Add-LocalGroupMember -Group "Remote Desktop Users" -Member $userName -ErrorAction Stop
               Write-Host "│ ✅ Đã cấp quyền Administrator & RDP" -ForegroundColor Green
-              
-              # Kích hoạt user
               Enable-LocalUser -Name $userName
               Write-Host "│ ✅ Đã kích hoạt user" -ForegroundColor Green
-              
           } catch {
               Write-Host "│ ❌ Lỗi tạo user: $($_.Exception.Message)" -ForegroundColor Red
               exit 1
           }
-          
-          # Lưu thông tin ra env và file
           echo "RDP_USER=$userName" >> $env:GITHUB_ENV
           echo "RDP_PASS=$matKhau" >> $env:GITHUB_ENV
           echo "$matKhau" > $env:TEMP\rdp_password.txt
-          
           Write-Host "✅ Tài khoản $userName đã sẵn sàng" -ForegroundColor Green
 
-      # THIẾT LẬP WALLPAPER BẰNG ACTIVE SETUP (ĐẢM BẢO SET ĐƯỢC NỀN)
       - name: 🖼️ CÀI ĐẶT WALLPAPER ZUNNY (ACTIVE SETUP)
         run: |
           Write-Host ""
           Write-Host "🖼️ ĐANG CÀI ĐẶT HÌNH NỀN ZUNNY QUA ACTIVE SETUP" -ForegroundColor Yellow
-
           $sourceImage = "image/image.png"
           $destImage = "C:\Windows\Web\Wallpaper\Zunny\zunny_wallpaper.png"
           $userName = $env:RDP_USER
-
-          # Tạo thư mục đích
           New-Item -ItemType Directory -Path "C:\Windows\Web\Wallpaper\Zunny" -Force -ErrorAction SilentlyContinue
-
-          # Copy ảnh
           if (Test-Path $sourceImage) {
               Copy-Item -Path $sourceImage -Destination $destImage -Force
               Write-Host "│ ✅ Đã copy ảnh nền vào $destImage" -ForegroundColor Green
@@ -149,45 +119,32 @@ jobs:
               Write-Host "│ ❌ Không tìm thấy file $sourceImage" -ForegroundColor Red
               exit 1
           }
-
-          # Tạo script đặt wallpaper (PowerShell)
           $scriptContent = @"
 `$wallpaper = "$destImage"
 Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "Wallpaper" -Value `$wallpaper -Force
-Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "WallpaperStyle" -Value 2 -Force   # 2 = Stretch
+Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "WallpaperStyle" -Value 2 -Force
 Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "TileWallpaper" -Value 0 -Force
-# Kích hoạt wallpaper ngay
 RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters
 "@
-
           $scriptPath = "C:\Windows\Setup\Scripts\SetZunnyWallpaper.ps1"
           New-Item -ItemType Directory -Path "C:\Windows\Setup\Scripts" -Force -ErrorAction SilentlyContinue
           $scriptContent | Out-File -FilePath $scriptPath -Encoding ASCII -Force
           Write-Host "│ ✅ Đã tạo script set wallpaper tại $scriptPath" -ForegroundColor Green
-
-          # Đăng ký Active Setup cho tất cả user (hoặc chỉ user ZunnyUser)
-          # Dùng GUID ngẫu nhiên để tránh xung đột
           $guid = [guid]::NewGuid().ToString("B")
           $regPath = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\$guid"
-
           New-Item -Path $regPath -Force | Out-Null
           Set-ItemProperty -Path $regPath -Name "StubPath" -Value "powershell.exe -ExecutionPolicy Bypass -File `"$scriptPath`"" -Force
           Set-ItemProperty -Path $regPath -Name "Version" -Value "1,0" -Force
           Set-ItemProperty -Path $regPath -Name "ComponentID" -Value "ZunnyWallpaper" -Force
-
           Write-Host "│ ✅ Đã đăng ký Active Setup với GUID: $guid" -ForegroundColor Green
           Write-Host "│ 🔄 Khi user $userName đăng nhập lần đầu, wallpaper sẽ tự động được set" -ForegroundColor Cyan
-
           Write-Host "🎯 Cấu hình wallpaper hoàn tất!" -ForegroundColor Green
 
-      # KIỂM TRA QUYỀN USER
       - name: 🔍 KIỂM TRA QUYỀN HỆ THỐNG
         run: |
           Write-Host ""
           Write-Host "🔍 KIỂM TRA QUYỀN ĐĂNG NHẬP" -ForegroundColor Yellow
-          
           $user = $env:RDP_USER
-          
           $userObj = Get-LocalUser -Name $user -ErrorAction SilentlyContinue
           if ($userObj) {
               Write-Host "│ ✅ User $user tồn tại" -ForegroundColor Green
@@ -196,38 +153,32 @@ RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters
               Write-Host "│ ❌ User không tồn tại" -ForegroundColor Red
               exit 1
           }
-          
           $isAdmin = (Get-LocalGroupMember -Group "Administrators" | Where-Object {$_.Name -like "*$user"}).Count -gt 0
           if ($isAdmin) {
               Write-Host "│ ✅ Có quyền Administrator" -ForegroundColor Green
           } else {
               Write-Host "│ ❌ Không có quyền Administrator" -ForegroundColor Red
           }
-          
           $isRDPUser = (Get-LocalGroupMember -Group "Remote Desktop Users" | Where-Object {$_.Name -like "*$user"}).Count -gt 0
           if ($isRDPUser) {
               Write-Host "│ ✅ Có quyền Remote Desktop" -ForegroundColor Green
           } else {
               Write-Host "│ ❌ Không có quyền Remote Desktop" -ForegroundColor Red
           }
-          
           $termService = Get-Service -Name TermService -ErrorAction SilentlyContinue
           if ($termService.Status -eq 'Running') {
               Write-Host "│ ✅ Dịch vụ TermService đang chạy" -ForegroundColor Green
           } else {
               Write-Host "│ ❌ Dịch vụ TermService không chạy" -ForegroundColor Red
           }
-          
           Write-Host "🎯 Kiểm tra hoàn tất!" -ForegroundColor Green
 
-      # TAILSCALE
       - name: 🌐 THIẾT LẬP MẠNG ZUNNY
         env:
           TAILSCALE_AUTH_KEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
         run: |
           Write-Host ""
           Write-Host "🌐 ĐANG THIẾT LẬP KẾT NỐI MẠNG ZUNNY" -ForegroundColor Yellow
-          
           try {
               $msiPath = "$env:TEMP\tailscale-zunny.msi"
               Invoke-WebRequest -Uri "https://pkgs.tailscale.com/stable/tailscale-setup-latest-amd64.msi" -OutFile $msiPath
@@ -237,16 +188,13 @@ RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters
           } catch {
               Write-Host "│ ❌ Lỗi cài đặt Tailscale" -ForegroundColor Red
           }
-          
           Start-Sleep -Seconds 10
-          
           try {
               & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=$env:TAILSCALE_AUTH_KEY --hostname=zunny-cloud-$env:GITHUB_RUN_ID --accept-routes --accept-dns --reset
               Write-Host "│ ✅ Kết nối Tailscale thành công" -ForegroundColor Green
           } catch {
               Write-Host "│ ❌ Lỗi kết nối Tailscale" -ForegroundColor Red
           }
-          
           Write-Host "🔄 Đang lấy địa chỉ IP..." -NoNewline -ForegroundColor Blue
           $ip = $null
           for($i=0; $i -lt 20; $i++) {
@@ -261,32 +209,25 @@ RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters
               Write-Host "`r🔄 Đang lấy địa chỉ IP... $(@('.', '..', '...')[$i % 3])" -NoNewline -ForegroundColor Blue
               Start-Sleep -Seconds 3
           }
-          
           if (-not $ip -or $ip -notmatch '^\d+\.\d+\.\d+\.\d+$') {
               Write-Host "`r⚠️  Không thể lấy IP, sử dụng localhost" -ForegroundColor Yellow
               echo "TAILSCALE_IP=localhost" >> $env:GITHUB_ENV
           }
 
-      # HIỂN THỊ THÔNG TIN KẾT NỐI
       - name: 🎉 THÔNG TIN KẾT NỐI
         run: |
           $matKhau = Get-Content $env:TEMP\rdp_password.txt -ErrorAction SilentlyContinue
-          if (-not $matKhau) {
-              $matKhau = "Không thể đọc mật khẩu"
-          }
+          if (-not $matKhau) { $matKhau = "Không thể đọc mật khẩu" }
           $userName = $env:RDP_USER
-          
           $durationInput = "${{ github.event.inputs.duration }}"
           switch ($durationInput) {
               "1h" { $totalMinutes = 60; $displayTime = "1 giờ" }
               "3h" { $totalMinutes = 180; $displayTime = "3 giờ" }
               "5h40m" { $totalMinutes = 340; $displayTime = "5 giờ 40 phút" }
           }
-          
           $timeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById("SE Asia Standard Time")
           $thoiGianBatDau = [System.TimeZoneInfo]::ConvertTimeFromUtc((Get-Date).ToUniversalTime(), $timeZone)
           $thoiGianKetThuc = $thoiGianBatDau.AddMinutes($totalMinutes)
-          
           Write-Host ""
           Write-Host "┌───────────────────────────────────────────┐" -ForegroundColor Cyan
           Write-Host "│              🎉 KẾT NỐI THÀNH CÔNG!              │" -ForegroundColor Cyan
@@ -305,19 +246,14 @@ RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters
           Write-Host "│   3. User: $userName | Password: trên             │" -ForegroundColor Yellow
           Write-Host "│   4. Enjoy Zunny Cloud! 🦊☁️                      │" -ForegroundColor Yellow
           Write-Host "└───────────────────────────────────────────┘" -ForegroundColor Cyan
-          
           echo "TOTAL_MINUTES=$totalMinutes" >> $env:GITHUB_ENV
 
-      # DUY TRÌ PHIÊN ỔN ĐỊNH
       - name: ⏳ DUY TRÌ PHIÊN LÀM VIỆC
         run: |
-          $matKhau = Get-Content $env:TEMP\rdp_password.txt -ErrorAction SilentlyContinue
           $totalMinutes = $env:TOTAL_MINUTES
-          
           $timeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById("SE Asia Standard Time")
           $thoiGianBatDau = [System.TimeZoneInfo]::ConvertTimeFromUtc((Get-Date).ToUniversalTime(), $timeZone)
           $thoiGianKetThuc = $thoiGianBatDau.AddMinutes($totalMinutes)
-          
           Write-Host ""
           Write-Host "🔄 BẮT ĐẦU DUY TRÌ PHIÊN LÀM VIỆC..." -ForegroundColor Yellow
           Write-Host "💎 Phiên: ZUNNY CLOUD" -ForegroundColor Magenta
@@ -325,7 +261,6 @@ RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters
           Write-Host "🕐 Bắt đầu: $($thoiGianBatDau.ToString('HH:mm:ss'))" -ForegroundColor Green
           Write-Host "🕐 Kết thúc: $($thoiGianKetThuc.ToString('HH:mm:ss'))" -ForegroundColor Green
           Write-Host ""
-          
           $monitorScript = {
               $lastLogTime = Get-Date
               while ($true) {
@@ -345,72 +280,42 @@ RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters
               }
           }
           Start-Job -ScriptBlock $monitorScript -Name "SystemMonitor"
-          
           $frames = @('⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏')
           $colors = @('Red', 'Yellow', 'Green', 'Cyan', 'Blue', 'Magenta')
           $startTime = Get-Date
-          
           do {
               $thoiGianHienTai = [System.TimeZoneInfo]::ConvertTimeFromUtc((Get-Date).ToUniversalTime(), $timeZone)
               $thoiGianConLai = $thoiGianKetThuc - $thoiGianHienTai
-              
               $gioConLai = [math]::Max(0, [math]::Floor($thoiGianConLai.TotalHours))
               $phutConLai = [math]::Max(0, [math]::Floor($thoiGianConLai.TotalMinutes % 60))
               $giayConLai = [math]::Max(0, [math]::Floor($thoiGianConLai.TotalSeconds % 60))
-              
               $frame = $frames[([int]((Get-Date) - $startTime).TotalSeconds) % $frames.Length]
               $color = $colors[([int]((Get-Date) - $startTime).TotalMinutes) % $colors.Length]
-              
               Write-Host "`r$frame [$($thoiGianHienTai.ToString('HH:mm:ss'))] Thời gian còn lại: $gioConLai giờ $phutConLai phút $giayConLai giây" -NoNewline -ForegroundColor $color
-              
               Start-Sleep -Seconds 5
           } while ($thoiGianConLai.TotalSeconds -gt 0)
-          
           Write-Host ""
           Write-Host "🎯 ĐÃ HẾT THỜI GIAN - TỰ ĐỘNG DỪNG!" -ForegroundColor Red
-          
           Get-Job -Name "SystemMonitor" -ErrorAction SilentlyContinue | Stop-Job -PassThru | Remove-Job -Force
 
-      # DỌN DẸP HỆ THỐNG
       - name: 🧹 DỌN DẸP HỆ THỐNG
         if: always()
         run: |
           Write-Host ""
           Write-Host "🧹 ĐANG DỌN DẸP HỆ THỐNG..." -ForegroundColor Yellow
-          
           $cleanupSteps = @(
-              @{Name="Xóa file password"; Script={
-                  Remove-Item "$env:TEMP\rdp_password.txt" -ErrorAction SilentlyContinue
-              }},
-              @{Name="Xóa user ZunnyUser"; Script={
-                  Remove-LocalUser -Name $env:RDP_USER -ErrorAction SilentlyContinue
-              }},
-              @{Name="Đóng kết nối mạng"; Script={
-                  & "$env:ProgramFiles\Tailscale\tailscale.exe" down --accept-risk=all -ErrorAction SilentlyContinue
-                  Start-Sleep -Seconds 5
-              }},
-              @{Name="Xóa rule firewall"; Script={
-                  netsh advfirewall firewall delete rule name="RDP-Zunny" dir=in -ErrorAction SilentlyContinue
-                  netsh advfirewall firewall delete rule name="RDP-Zunny-Out" dir=out -ErrorAction SilentlyContinue
-              }},
-              @{Name="Khôi phục cài đặt RDP"; Script={
-                  Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 1 -Force -ErrorAction SilentlyContinue
-                  Stop-Service -Name TermService -Force -ErrorAction SilentlyContinue
-              }}
+              @{Name="Xóa file password"; Script={ Remove-Item "$env:TEMP\rdp_password.txt" -ErrorAction SilentlyContinue }},
+              @{Name="Xóa user ZunnyUser"; Script={ Remove-LocalUser -Name $env:RDP_USER -ErrorAction SilentlyContinue }},
+              @{Name="Đóng kết nối mạng"; Script={ & "$env:ProgramFiles\Tailscale\tailscale.exe" down --accept-risk=all -ErrorAction SilentlyContinue; Start-Sleep -Seconds 5 }},
+              @{Name="Xóa rule firewall"; Script={ netsh advfirewall firewall delete rule name="RDP-Zunny" dir=in -ErrorAction SilentlyContinue; netsh advfirewall firewall delete rule name="RDP-Zunny-Out" dir=out -ErrorAction SilentlyContinue }},
+              @{Name="Khôi phục cài đặt RDP"; Script={ Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 1 -Force -ErrorAction SilentlyContinue; Stop-Service -Name TermService -Force -ErrorAction SilentlyContinue }}
           )
-          
           foreach($step in $cleanupSteps) {
               Write-Host "│ 🗑️  $($step.Name)..." -NoNewline -ForegroundColor Gray
-              try {
-                  & $step.Script
-                  Write-Host "`r│ ✅ $($step.Name)" -ForegroundColor Green
-              } catch {
-                  Write-Host "`r│ ⚠️  $($step.Name) - Đã xử lý an toàn" -ForegroundColor Yellow
-              }
+              try { & $step.Script; Write-Host "`r│ ✅ $($step.Name)" -ForegroundColor Green }
+              catch { Write-Host "`r│ ⚠️  $($step.Name) - Đã xử lý an toàn" -ForegroundColor Yellow }
               Start-Sleep -Milliseconds 300
           }
-          
           Get-Job | Stop-Job -PassThru | Remove-Job -Force -ErrorAction SilentlyContinue
-          
           Write-Host ""
           Write-Host "🎉 Dọn dẹp hoàn tất! Hẹn gặp lại Zunny! 👋" -ForegroundColor Green
