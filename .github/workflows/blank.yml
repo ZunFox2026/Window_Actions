@@ -15,7 +15,7 @@ on:
 
 jobs:
   Zunny-RDP-Setup:
-    runs-on: self-hosted # ĐÃ ĐỔI SANG CHẠY TRÊN MÁY HOST CỦA BẠN
+    runs-on: self-hosted
     timeout-minutes: 340
     
     steps:
@@ -318,9 +318,17 @@ jobs:
           $cleanupSteps = @(
               @{Name="Xóa file password"; Script={ Remove-Item "$env:TEMP\rdp_password.txt" -ErrorAction SilentlyContinue }},
               @{Name="Xóa user ZunnyUser"; Script={ Remove-LocalUser -Name $env:RDP_USER -ErrorAction SilentlyContinue }},
-              @{Name="Đóng kết nối mạng"; Script={ & "$env:ProgramFiles\Tailscale\tailscale.exe" down --accept-risk=all -ErrorAction SilentlyContinue; Start-Sleep -Seconds 5 }},
-              @{Name="Xóa rule firewall"; Script={ netsh advfirewall firewall delete rule name="RDP-Zunny" dir=in -ErrorAction SilentlyContinue; netsh advfirewall firewall delete rule name="RDP-Zunny-Out" dir=out -ErrorAction SilentlyContinue }},
-              @{Name="Khôi phục cài đặt RDP"; Script={ Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 1 -Force -ErrorAction SilentlyContinue; Stop-Service -Name TermService -Force -ErrorAction SilentlyContinue }}
+              @{Name="Xóa sạch dữ liệu Profile User (C:\Users\)"; Script={
+                  Start-Sleep -Seconds 3
+                  # Xóa Registry Profile của User để sạch hoàn toàn
+                  Get-CimInstance Win32_UserProfile | Where-Object {$_.LocalPath -match $env:RDP_USER} | Remove-CimInstance -ErrorAction SilentlyContinue
+                  # Cưỡng chế xóa thư mục nếu còn sót lại
+                  if (Test-Path "C:\Users\$env:RDP_USER") {
+                      Remove-Item -Path "C:\Users\$env:RDP_USER" -Recurse -Force -ErrorAction SilentlyContinue
+                  }
+              }},
+              @{Name="Đóng kết nối mạng (Tailscale)"; Script={ & "$env:ProgramFiles\Tailscale\tailscale.exe" down --accept-risk=all -ErrorAction SilentlyContinue; Start-Sleep -Seconds 5 }},
+              @{Name="Xóa rule firewall"; Script={ netsh advfirewall firewall delete rule name="RDP-Zunny" dir=in -ErrorAction SilentlyContinue; netsh advfirewall firewall delete rule name="RDP-Zunny-Out" dir=out -ErrorAction SilentlyContinue }}
           )
           foreach($step in $cleanupSteps) {
               Write-Host "│ 🗑️  $($step.Name)..." -NoNewline -ForegroundColor Gray
@@ -330,4 +338,4 @@ jobs:
           }
           Get-Job | Stop-Job -PassThru | Remove-Job -Force -ErrorAction SilentlyContinue
           Write-Host ""
-          Write-Host "🎉 Dọn dẹp hoàn tất! Hẹn gặp lại Zunny! 👋" -ForegroundColor Green
+          Write-Host "🎉 Dọn dẹp hoàn tất! RDP vẫn đang hoạt động, User đã bị xóa sạch! 👋" -ForegroundColor Green
