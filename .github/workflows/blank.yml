@@ -1,0 +1,21 @@
+name: Zunny Cloud RDP
+
+on: 
+  workflow_dispatch: # Cho phép bạn bấm nút "Run workflow" thủ công
+
+jobs:
+  build:
+    runs-on: self-hosted # BẮT BUỘC phải là self-hosted để chạy trên máy của bạn
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Preparing Environment
+        run: |
+          echo "Đang khởi tạo máy..."
+          # Các lệnh setup của bạn ở đây
+          
+      - name: Keep Alive
+        run: |
+          # Lệnh để giữ cho RDP không bị tắt
+          sleep 21600 
